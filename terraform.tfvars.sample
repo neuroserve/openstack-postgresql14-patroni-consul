@@ -1,0 +1,26 @@
+config = {
+  os_cloud_name = "scs1"
+  private_key_pem = "/pathtoyour/consul-agent-ca-key.pem"
+  certificate_pem = "/pathtoyour/consul-agent-ca.pem"
+  keypair         = "/pathtoyourpublickey/ssh.pub"
+  connkey         = "/pathtoyourprivatesshkey/id_rsa"
+  instance_network_uuid = "yournetworkuuid"
+  instance_backnet_uuid = "yourbacknetuuid"
+  flavor_name     = "SCS-8V:8:100"
+  bastionhost     = "ipofyourbastionhost"
+  os_domain_name  = "youropenstackdomain"
+  vm = { 
+    replicas = "3"
+  }
+  organization = { 
+    name = "yourorganisation"
+  }
+  certificate_authority = { 
+    algorithm = "aes256"
+  }
+  image_version = 2022062801
+  consul_datacenter_name = "scs1"
+  consul_encryption_key = "yourconsulserversencryptionkey"
+  consul_scope = "ascope"
+  consul_namespace = "anamespace"
+}
