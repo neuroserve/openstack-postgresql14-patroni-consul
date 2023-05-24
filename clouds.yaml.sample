@@ -1,0 +1,13 @@
+---
+clouds:
+  scs1:
+    auth:
+      auth_url: https://api.gx-scs.sovereignit.cloud:5000
+      username: "myusername"
+      project_id: myprojectid
+      project_name: "myprojectname"
+      user_domain_name: "mydomain"
+    region_name: "RegionOne"
+    interface: "public"
+    identity_api_version: 3
+

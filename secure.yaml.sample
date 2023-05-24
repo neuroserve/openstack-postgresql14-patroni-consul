@@ -1,0 +1,6 @@
+---
+clouds:
+  scs1:
+    auth:
+      password: SuperSecretPasswordNobodyCanGuess
+
