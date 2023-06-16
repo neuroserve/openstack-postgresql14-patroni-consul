@@ -178,7 +178,6 @@ resource "openstack_compute_servergroup_v2" "patronicluster" {
 resource "openstack_lb_loadbalancer_v2" "postgres" {
   name            = "postgres"
   vip_network_id  = var.config.vipnet_uuid
-  security_group_ids = [ "${openstack_networking_secgroup_v2.sg_lb.id}" ]
 }
 
 resource "openstack_lb_listener_v2" "postgres" {
@@ -330,4 +329,17 @@ resource "openstack_compute_instance_v2" "postgresql" {
        "systemctl start patroni",
      ]
   }
+
+  provisioner "remote-exec" {
+     inline = [
+       "/usr/bin/pmm-admin config --server-insecure-tls --force --server-url=https://admin:${var.config.pmmpasswd}@${var.config.pmmip}:443",
+     ]
+  }
+
+  provisioner "remote-exec" {
+     inline = [
+       "/usr/bin/pmm-admin add external-serverless --host=${self.access_ip_v4} --listen-port=8008 --external-name=patroni-node${count.index}", 
+     ]
+  }
+
 }
