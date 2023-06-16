@@ -13,5 +13,8 @@ provider "openstack" {
    cloud = var.config.os_cloud_name
    user_name = var.user_name
    password = var.password
+   user_domain_name = var.config.os_domain
+   tenant_name = var.config.os_project
+   region =  var.config.os_region
 }
 
