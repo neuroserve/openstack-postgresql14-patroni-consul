@@ -4,7 +4,7 @@ locals {
 
 variable "auth_url" {
   type    = string
-  default = "https://api.gx-scs.sovereignit.cloud:5000" 
+  default = "https://myauthurl:5000" 
 }
 
 variable "user_name" {
@@ -15,6 +15,21 @@ variable "user_name" {
 variable "password" {
   type    = string
   default = "totalgeheim" 
+}
+
+variable "tenant_name" {
+  type    = string
+  default = "myproject"
+}
+
+variable "user_domain_name" {
+  type    = string
+  default = "mydomain"
+}
+
+variable "region" {
+  type   = string
+  default = "myregion"
 }
 
 resource "random_password" "admin_password" {
@@ -73,7 +88,7 @@ data "openstack_images_image_v2" "os" {
 }
 
 resource "openstack_compute_keypair_v2" "user_keypair" {
-  name       = "tf_postgresql"
+  name       = "tf_patroni"
   public_key = file("${var.config.keypair}")
 }
 
@@ -112,10 +127,97 @@ resource "openstack_networking_secgroup_rule_v2" "sr_dns2" {
   security_group_id = openstack_networking_secgroup_v2.sg_patroni.id
 }
 
+resource "openstack_networking_secgroup_rule_v2" "sr_patroni" {
+  direction         = "ingress"
+  ethertype         = "IPv4"
+  protocol          = "tcp"
+  port_range_min    = 8008
+  port_range_max    = 8008
+  remote_ip_prefix  = "0.0.0.0/0"
+  security_group_id = openstack_networking_secgroup_v2.sg_patroni.id
+}
+
+resource "openstack_networking_secgroup_rule_v2" "sr_postgres" {
+  direction         = "ingress"
+  ethertype         = "IPv4"
+  protocol          = "tcp"
+  port_range_min    = 5432
+  port_range_max    = 5432
+  remote_ip_prefix  = "0.0.0.0/0"
+  security_group_id = openstack_networking_secgroup_v2.sg_patroni.id
+}
+
+resource "openstack_networking_floatingip_v2" "postgres_flip" {
+  pool  = "ext01"
+}
+
+#resource "openstack_networking_floatingip_associate_v2" "postgres_flip" {
+#   floating_ip = "${openstack_networking_floatingip_v2.postgres_flip.address}"
+#   port_id = "${openstack_lb_loadbalancer_v2.postgres.vip_port_id}"
+#}
+
 resource "openstack_compute_servergroup_v2" "patronicluster" {
   name = "aaf-sg"
   policies = ["anti-affinity"]
 }
+
+#resource "openstack_blockstorage_volume_v3" "datavolume" {
+#  name  = "pgdatavolume-${count.index}"
+#  size  = 500 
+#  count = var.config.vm.replicas
+#}
+
+#resource "openstack_compute_volume_attach_v2" "dva" {
+#  count = var.config.vm.replicas
+#  instance_id = "${element(openstack_compute_instance_v2.postgresql.*.id, count.index)}"
+#  volume_id = "${element(openstack_blockstorage_volume_v3.datavolume.*.id, count.index)}"
+#  device = "/dev/sdb"
+#  region = var.config.os_region
+#}
+
+resource "openstack_lb_loadbalancer_v2" "postgres" {
+  name            = "postgres"
+  vip_network_id  = var.config.vipnet_uuid
+  security_group_ids = [ "${openstack_networking_secgroup_v2.sg_lb.id}" ]
+}
+
+resource "openstack_lb_listener_v2" "postgres" {
+  name            = "postgres"
+  protocol        = "TCP"
+  protocol_port   = 5432
+  allowed_cidrs   = var.config.lbaccess 
+  loadbalancer_id = openstack_lb_loadbalancer_v2.postgres.id
+}
+
+resource "openstack_lb_pool_v2" "postgres" {
+  name            = "postgres"
+  protocol        = "TCP"
+  lb_method       = "ROUND_ROBIN"
+  listener_id     = openstack_lb_listener_v2.postgres.id
+}
+
+resource "openstack_lb_member_v2" "postgres" {
+  count           = var.config.vm.replicas
+  name            = "postgresql-${count.index}"
+  address         = "${element(openstack_compute_instance_v2.postgresql.*.access_ip_v4, count.index)}"
+  protocol_port   = 5432
+  pool_id         = openstack_lb_pool_v2.postgres.id
+  subnet_id       = var.config.instance_subnet_uuid
+  monitor_address = "${element(openstack_compute_instance_v2.postgresql.*.access_ip_v4, count.index)}"
+  monitor_port    = 8008
+}
+
+resource "openstack_lb_monitor_v2" "postgres" {
+  name             = "postgres"
+  pool_id          = openstack_lb_pool_v2.postgres.id
+  type             = "HTTP"
+  delay            = 5
+  timeout          = 3
+  max_retries      = 3
+  url_path         = "/"
+  expected_codes   = 200
+}
+
 
 resource "openstack_compute_instance_v2" "postgresql" {
   name            = "postgresql-${count.index}"
@@ -128,9 +230,9 @@ resource "openstack_compute_instance_v2" "postgresql" {
     group = openstack_compute_servergroup_v2.patronicluster.id
   }
 
-  network {
-    uuid = var.config.instance_backnet_uuid
-  }
+#  network {
+#    uuid = var.config.instance_backnet_uuid
+#  }
 
   network {
     uuid = var.config.instance_network_uuid
@@ -187,8 +289,18 @@ resource "openstack_compute_instance_v2" "postgresql" {
         auth_url = "${var.auth_url}",
         user_name = "${var.user_name}",
         password = "${var.password}",
+        os_region   = "${var.config.os_region}",
      })
      destination = "/etc/consul/consul.hcl"
+  }
+
+  provisioner "remote-exec" {
+     inline = [
+       "apt-get -y install xfsprogs",
+#       "mkfs.xfs /dev/sdb",
+#       "mkdir -p /var/lib/postgresql/data",
+#       "mount /dev/sdb /var/lib/postgresql/data",
+     ]
   }
 
   provisioner "remote-exec" {
@@ -201,7 +313,6 @@ resource "openstack_compute_instance_v2" "postgresql" {
   provisioner "file" {
      content = templatefile("${path.module}/templates/patroni.yml.tpl", {
         hostname = "postgresql-${count.index}"
-        consul_addr = var.config.consul_addr
         consul_scope = var.config.consul_scope
         consul_namespace = var.config.consul_namespace
         admin_password = random_password.admin_password.result
