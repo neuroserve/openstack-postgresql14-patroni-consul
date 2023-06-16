@@ -61,7 +61,8 @@ bootstrap:
         wal_level: hot_standby
         wal_log_hints: 'on'
         work_mem: 10MB
-        shared_preload_libraries: 'pg_stat_statements'
+        shared_preload_libraries: 'pg_stat_monitor'
+        pg_stat_monitor.pgsm_query_max_len: 4096
         track_activity_query_size: 2048
         pg_stat_statements.track: all
         track_io_timing: 'on'
