@@ -11,6 +11,13 @@ This repo uses terraform to deploy a Postgres Patroni Cluster (backed by a Consu
 
 ## Deployment
 
+You need the CA files for your Consul cluster in order to sign your certificates with them. You need those certs in order to join the Consul cluster successfully.
+The Postgres instances are deployed on seperate hypervisors in order to increase reliability.
+
+The loadbalancer uses the patroni api on port 8008 for monitoring, which sends a 503 http error code, if you connect to a replica and a 200, if you connect to the leader. The security groups allow connections to 5432 and 8008 on Postgres instances. All instances will be added to the loadbalancer pool.
+
+You configure your database via patroni. Just adapt the `patroni.yml.tpl` file.
+
 Obviously, you have to populate terraform.tfvars according to your environment. terraform.tfvars.sample should give you some hints.
 Keep in mind to change `consul_scope` every time you deploy (or delete the contents in consul) - otherwise the patroni cluster will not be able to assemble itself.
 
