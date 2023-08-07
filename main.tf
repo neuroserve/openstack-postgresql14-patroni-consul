@@ -217,6 +217,10 @@ resource "openstack_lb_monitor_v2" "postgres" {
   expected_codes   = 200
 }
 
+resource "openstack_objectstorage_container_v1" "pg-backup" {
+  region = "${var.config.os_region}"
+  name   = "pg-backup"
+}
 
 resource "openstack_compute_instance_v2" "postgresql" {
   name            = "postgresql-${count.index}"
@@ -300,6 +304,75 @@ resource "openstack_compute_instance_v2" "postgresql" {
 #       "mkdir -p /var/lib/postgresql/data",
 #       "mount /dev/sdb /var/lib/postgresql/data",
      ]
+  }
+
+  provisioner "remote-exec" {
+     inline = [
+       "mkdir -p /etc/wal-g.d/env",
+     ]
+  }
+
+  provisioner "file" {
+     content = templatefile("${path.module}/templates/AWS_ACCESS_KEY_ID.tpl", {
+        access_key = var.config.accesskey,       
+     }) 
+     destination = "/etc/wal-g.d/env/AWS_ACCESS_KEY_ID"
+  }
+
+  provisioner "file" {
+     content = templatefile("${path.module}/templates/AWS_ENDPOINT.tpl", {
+        aws_endpoint = var.config.awsendpoint,
+     })
+     destination = "/etc/wal-g.d/env/AWS_ENDPOINT"
+  }
+
+  provisioner "file" {
+     content = templatefile("${path.module}/templates/AWS_REGION.tpl", {
+        aws_region = var.config.awsregion,
+     })
+     destination = "/etc/wal-g.d/env/AWS_REGION"
+  }
+
+  provisioner "file" {
+     content = templatefile("${path.module}/templates/AWS_S3_FORCE_PATH_STYLE.tpl", {
+        aws_force_path_style = var.config.awsforcepathstyle,
+     })
+     destination = "/etc/wal-g.d/env/AWS_S3_FORCE_PATH_STYLE"
+  }
+
+  provisioner "file" {
+     content = templatefile("${path.module}/templates/AWS_SECRET_ACCESS_KEY.tpl", {
+        sec_key = var.config.secretkey,
+     })
+     destination = "/etc/wal-g.d/env/AWS_SECRET_ACCESS_KEY"
+  }
+
+  provisioner "file" {
+     content = templatefile("${path.module}/templates/PGPASSWORD.tpl", {
+        pg_password = random_password.admin_password.result,
+     })
+     destination = "/etc/wal-g.d/env/PGPASSWORD"
+  }
+  
+  provisioner "file" {
+     content = templatefile("${path.module}/templates/WALG_COMPRESSION_METHOD.tpl", {
+        walg_compress = var.config.walgcompress,
+     })
+     destination = "/etc/wal-g.d/env/WALG_COMPRESSION_METHOD"
+  }
+
+  provisioner "file" {
+     content = templatefile("${path.module}/templates/WALG_S3_PREFIX.tpl", {
+        walg_s3_prefix = var.config.walgs3prefix,
+     })
+     destination = "/etc/wal-g.d/env/WALG_S3_PREFIX"
+  }
+
+  provisioner "file" {
+     content = templatefile("${path.module}/templates/WAL_S3_BUCKET.tpl", {
+        wal_s3_bucket = var.config.wals3bucket,
+     })
+     destination = "/etc/wal-g.d/env/WAL_S3_BUCKET"
   }
 
   provisioner "remote-exec" {
