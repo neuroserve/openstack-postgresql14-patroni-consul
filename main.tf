@@ -147,6 +147,46 @@ resource "openstack_networking_secgroup_rule_v2" "sr_postgres" {
   security_group_id = openstack_networking_secgroup_v2.sg_patroni.id
 }
 
+resource "openstack_networking_secgroup_rule_v2" "sr_8300tcp" {
+  direction         = "ingress"
+  ethertype         = "IPv4"
+  protocol          = "tcp"
+  port_range_min    = 8300
+  port_range_max    = 8300
+  remote_ip_prefix  = "0.0.0.0/0"
+  security_group_id = openstack_networking_secgroup_v2.sg_patroni.id
+}
+
+resource "openstack_networking_secgroup_rule_v2" "sr_8300udp" {
+  direction         = "ingress"
+  ethertype         = "IPv4"
+  protocol          = "udp"
+  port_range_min    = 8300
+  port_range_max    = 8300
+  remote_ip_prefix  = "0.0.0.0/0"
+  security_group_id = openstack_networking_secgroup_v2.sg_patroni.id
+}
+
+resource "openstack_networking_secgroup_rule_v2" "sr_8301tcp" {
+  direction         = "ingress"
+  ethertype         = "IPv4"
+  protocol          = "tcp"
+  port_range_min    = 8301
+  port_range_max    = 8301
+  remote_ip_prefix  = "0.0.0.0/0"
+  security_group_id = openstack_networking_secgroup_v2.sg_patroni.id
+}
+
+resource "openstack_networking_secgroup_rule_v2" "sr_8301udp" {
+  direction         = "ingress"
+  ethertype         = "IPv4"
+  protocol          = "udp"
+  port_range_min    = 8301
+  port_range_max    = 8301
+  remote_ip_prefix  = "0.0.0.0/0"
+  security_group_id = openstack_networking_secgroup_v2.sg_patroni.id
+}
+
 resource "openstack_networking_floatingip_v2" "postgres_flip" {
   pool  = "ext01"
 }
