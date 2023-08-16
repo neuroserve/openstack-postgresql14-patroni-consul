@@ -105,7 +105,7 @@ postgresql:
       username: rewind_user
       password: rewind_password
   parameters:
-    unix_socket_directories: '.'
+    unix_socket_directories: '/var/run/postgresql'
 
 tags:
     nofailover: false
