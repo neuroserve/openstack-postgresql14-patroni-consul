@@ -55,13 +55,23 @@ resource "tls_cert_request" "consul" {
     dns_names = [
         "consul",
         "consul.local",
+        "server.${var.config.datacenter_name}.consul",
+        "consul.service.${var.config.domain_name}",
+        "consul-${count.index}.server.${var.config.domain_name}.consul",
+        "localhost",
+        "127.0.0.1",
+    ]
+
+    ip_addresses = [
+        "127.0.0.1",
     ]
 
     subject {
-        common_name  = "consul.local"
+        common_name = "server.${var.config.datacenter_name}.consul"
         organization = var.config.organization.name
     }
 }
+
 
 resource "tls_locally_signed_cert" "consul" {
     count = var.config.vm.replicas
@@ -83,7 +93,7 @@ resource "tls_locally_signed_cert" "consul" {
 
 data "openstack_images_image_v2" "os" {
   name        = "postgresql14-patroni-consul"
-  visibility = "private"
+#  visibility = "private"
   most_recent = "true"
 }
 
@@ -341,8 +351,10 @@ resource "openstack_compute_instance_v2" "postgresql" {
      inline = [
        "apt-get -y install xfsprogs",
 #       "mkfs.xfs /dev/sdb",
-#       "mkdir -p /var/lib/postgresql/data",
+        "mkdir -p /var/lib/postgresql/data",
 #       "mount /dev/sdb /var/lib/postgresql/data",
+        "chown postgres:postgres /var/lib/postgresql/data",
+        "chmod 0700 /var/lib/postgresql/data",
      ]
   }
 
@@ -354,35 +366,35 @@ resource "openstack_compute_instance_v2" "postgresql" {
 
   provisioner "file" {
      content = templatefile("${path.module}/templates/AWS_ACCESS_KEY_ID.tpl", {
-        access_key = var.config.accesskey,       
+        key_id = var.config.access_key,       
      }) 
      destination = "/etc/wal-g.d/env/AWS_ACCESS_KEY_ID"
   }
 
   provisioner "file" {
      content = templatefile("${path.module}/templates/AWS_ENDPOINT.tpl", {
-        aws_endpoint = var.config.awsendpoint,
+        aws_endpoint = var.config.aws_endpoint,
      })
      destination = "/etc/wal-g.d/env/AWS_ENDPOINT"
   }
 
   provisioner "file" {
      content = templatefile("${path.module}/templates/AWS_REGION.tpl", {
-        aws_region = var.config.awsregion,
+        aws_region = var.config.aws_region,
      })
      destination = "/etc/wal-g.d/env/AWS_REGION"
   }
 
   provisioner "file" {
      content = templatefile("${path.module}/templates/AWS_S3_FORCE_PATH_STYLE.tpl", {
-        aws_force_path_style = var.config.awsforcepathstyle,
+        aws_force_path_style = var.config.aws_force_path_style,
      })
      destination = "/etc/wal-g.d/env/AWS_S3_FORCE_PATH_STYLE"
   }
 
   provisioner "file" {
      content = templatefile("${path.module}/templates/AWS_SECRET_ACCESS_KEY.tpl", {
-        sec_key = var.config.secretkey,
+        sec_key = var.config.sec_key,
      })
      destination = "/etc/wal-g.d/env/AWS_SECRET_ACCESS_KEY"
   }
@@ -396,21 +408,21 @@ resource "openstack_compute_instance_v2" "postgresql" {
   
   provisioner "file" {
      content = templatefile("${path.module}/templates/WALG_COMPRESSION_METHOD.tpl", {
-        walg_compress = var.config.walgcompress,
+        walg_compress = var.config.walg_compress,
      })
      destination = "/etc/wal-g.d/env/WALG_COMPRESSION_METHOD"
   }
 
   provisioner "file" {
      content = templatefile("${path.module}/templates/WALG_S3_PREFIX.tpl", {
-        walg_s3_prefix = var.config.walgs3prefix,
+        walg_s3_prefix = var.config.walg_s3_prefix,
      })
      destination = "/etc/wal-g.d/env/WALG_S3_PREFIX"
   }
 
   provisioner "file" {
      content = templatefile("${path.module}/templates/WAL_S3_BUCKET.tpl", {
-        wal_s3_bucket = var.config.wals3bucket,
+        wal_s3_bucket = var.config.wal_s3_bucket,
      })
      destination = "/etc/wal-g.d/env/WAL_S3_BUCKET"
   }
@@ -429,6 +441,7 @@ resource "openstack_compute_instance_v2" "postgresql" {
         consul_namespace = var.config.consul_namespace
         admin_password = random_password.admin_password.result
         listen_ip = self.access_ip_v4
+        consul_datacenter = var.config.consul_datacenter_name
      })
      destination = "/var/lib/postgresql/patroni.yml"
   }

@@ -9,6 +9,10 @@ restapi:
 consul:
   host: localhost:8500
   register_service: true
+  cacert: /etc/consul/certificates/ca.pem
+  cert: /etc/consul/certificates/cert.pem
+  key: /etc/consul/certificates/private_key.pem
+  dc: ${consul_datacenter}
 
 bootstrap:
   dcs:
